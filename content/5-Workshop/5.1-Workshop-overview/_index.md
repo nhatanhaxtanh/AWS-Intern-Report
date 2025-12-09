@@ -51,4 +51,4 @@ To power the intelligent features of BandUp (Writing/Speaking Feedback, Flashcar
 -   **AWS WAF (Web Application Firewall):** Protects the web application from common web exploits.
 -   **AWS Secrets Manager:** Securely stores and manages sensitive credentials (database passwords, API keys) throughout their lifecycle.
 
-![Architecture Diagram](/images/2-Proposal/AWS-Bandup-Architecture.png)
+![Architecture Diagram](/images/AWS-Bandup-Architecture.png)
