@@ -14,7 +14,7 @@ This comprehensive workshop guides you through building a **production-ready AWS
 
 The architecture implements an **active-passive Multi-AZ deployment** pattern on Amazon ECS, with a serverless AI service layer for intelligent assessment and content generation.
 
-![Architecture Overview](/images/2-Proposal/AWS-Bandup-Architecture.png)
+![Architecture Overview](/images/AWS-Bandup-Architecture.png)
 
 #### What You Will Build
 
