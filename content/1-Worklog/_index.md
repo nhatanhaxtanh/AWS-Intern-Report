@@ -14,18 +14,18 @@ During these 12 weeks, I transitioned from familiarizing myself with core Cloud 
 
 | Week | Focus Area |
 | :--- | :--- |
-| **Week 1** | [Familiarization with FCJ, AWS account creation, basic Cloud concepts, and foundational network setup (**VPC, Subnets, Internet Gateway**).](1.1-week1/) |
-| **Week 2** | [Mastered **Amazon EC2 and VPC** fundamentals, completed AWS Skill Builder courses on **IAM, Budgets, EC2**, and attended **Cloud Day event** for AI/Data insights.](1.2-week2/) |
-| **Week 3** | [Resolved AWS account issues, configured **Hybrid DNS with Route 53 Resolver** and **VPC Peering**, learned **CloudFormation** and **Cloud9** for IaC development.](1.3-week3/) |
-| **Week 4** | [Mastered **AWS Transit Gateway** for centralized network management, deep dive into **EC2 Auto Scaling**, **Lightsail**, and **Migration services** (DMS, VM Import/Export).](1.4-week4/) |
-| **Week 5** | [Analyzed and optimized AWS costs, designed **Serverless infrastructure architecture**, learned **RDS, DynamoDB, ElastiCache**, and set up **AWS Toolkit for VS Code**.](1.5-week5/) |
-| **Week 6** | [Mastered **AWS Storage services** (S3, Glacier, Storage Gateway), enhanced Python skills, finalized project architecture, and attended **DevSecOps & Amazon Q Developer Webinar**.](1.6-week6/) |
-| **Week 7** | [**Comprehensive review** and knowledge consolidation of core AWS services (Compute, Storage, Networking, Database, Security) in preparation for the **mid-term exam**.](1.7-week7/) |
-| **Week 8** | [**Completed mid-term exam**, began implementing foundational **CRUD** functionalities, researched **serverless architecture** (Lambda, API Gateway, DynamoDB), and set up development environment.](1.8-week8/) |
 | **Week 9** | [**Transitioned to AWS SAM**, refactored CRUD functionalities, integrated **Docker** for build environment, and **successfully deployed** project to AWS overcoming local debugging challenges.](1.9-week9/) |
-| **Week 10** | [**Debugged CORS** and template validation errors, integrated **Frontend/Backend**, completed **Read/Delete** functions, resolved **Cognito authentication** issues, and attended **AWS Cloud Mastery Series #1**.](1.10-week10/) |
+| **Week 3** | [Resolved AWS account issues, configured **Hybrid DNS with Route 53 Resolver** and **VPC Peering**, learned **CloudFormation** and **Cloud9** for IaC development.](1.3-week3/) |
 | **Week 11** | [Implemented **Multi-Stack** architecture for optimization, **fixed the persistent CORS error**, and began integrating **AI Services** (Lambda, Bedrock).](1.11-week11/) |
+| **Week 6** | [Mastered **AWS Storage services** (S3, Glacier, Storage Gateway), enhanced Python skills, finalized project architecture, and attended **DevSecOps & Amazon Q Developer Webinar**.](1.6-week6/) |
+| **Week 1** | [Familiarization with FCJ, AWS account creation, basic Cloud concepts, and foundational network setup (**VPC, Subnets, Internet Gateway**).](1.1-week1/) |
 | **Week 12** | [Finalized **AI-powered Lambda functions**, integrated **Gemini API** for IELTS evaluation, completed **RAG pipeline** for flashcard generation, and attended the **final AWS Cloud Mastery Series**.](1.12-week12/) |
+| **Week 4** | [Mastered **AWS Transit Gateway** for centralized network management, deep dive into **EC2 Auto Scaling**, **Lightsail**, and **Migration services** (DMS, VM Import/Export).](1.4-week4/) |
+| **Week 10** | [**Debugged CORS** and template validation errors, integrated **Frontend/Backend**, completed **Read/Delete** functions, resolved **Cognito authentication** issues, and attended **AWS Cloud Mastery Series #1**.](1.10-week10/) |
+| **Week 7** | [**Comprehensive review** and knowledge consolidation of core AWS services (Compute, Storage, Networking, Database, Security) in preparation for the **mid-term exam**.](1.7-week7/) |
+| **Week 2** | [Mastered **Amazon EC2 and VPC** fundamentals, completed AWS Skill Builder courses on **IAM, Budgets, EC2**, and attended **Cloud Day event** for AI/Data insights.](1.2-week2/) |
+| **Week 5** | [Analyzed and optimized AWS costs, designed **Serverless infrastructure architecture**, learned **RDS, DynamoDB, ElastiCache**, and set up **AWS Toolkit for VS Code**.](1.5-week5/) |
+| **Week 8** | [**Completed mid-term exam**, began implementing foundational **CRUD** functionalities, researched **serverless architecture** (Lambda, API Gateway, DynamoDB), and set up development environment.](1.8-week8/) |
 
 ---
 
