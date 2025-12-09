@@ -1,126 +1,123 @@
----
-title: "Blog 1"
-date: 
+﻿---
+title: "Bắt đầu với Amazon OpenSearch Service: T-shirt size tên miền của bạn cho phân tích nhật ký"
+date: 2025-09-16
 weight: 1
 chapter: false
 pre: " <b> 3.1. </b> "
 ---
-{{% notice warning %}}
-⚠️ **Lưu ý:** Các thông tin dưới đây chỉ nhằm mục đích tham khảo, vui lòng **không sao chép nguyên văn** cho bài báo cáo của bạn kể cả warning này.
-{{% /notice %}}
 
-# Bắt đầu với healthcare data lakes: Sử dụng microservices
 
-Các data lake có thể giúp các bệnh viện và cơ sở y tế chuyển dữ liệu thành những thông tin chi tiết về doanh nghiệp và duy trì hoạt động kinh doanh liên tục, đồng thời bảo vệ quyền riêng tư của bệnh nhân. **Data lake** là một kho lưu trữ tập trung, được quản lý và bảo mật để lưu trữ tất cả dữ liệu của bạn, cả ở dạng ban đầu và đã xử lý để phân tích. data lake cho phép bạn chia nhỏ các kho chứa dữ liệu và kết hợp các loại phân tích khác nhau để có được thông tin chi tiết và đưa ra các quyết định kinh doanh tốt hơn.
+Ngày đăng: 2025‑09‑16 – Tác giả: Harsh Bansal, Aditya Challa, Raaga N.G trong [Amazon OpenSearch Service](https://aws.amazon.com/blogs/big-data/category/analytics/amazon-opensearch-service/), [Intermediate (200)](https://aws.amazon.com/blogs/big-data/category/learning-levels/intermediate-200/),[Technical How-to](https://aws.amazon.com/blogs/big-data/category/post-types/technical-how-to/).
 
-Bài đăng trên blog này là một phần của loạt bài lớn hơn về việc bắt đầu cài đặt data lake dành cho lĩnh vực y tế. Trong bài đăng blog cuối cùng của tôi trong loạt bài, *“Bắt đầu với data lake dành cho lĩnh vực y tế: Đào sâu vào Amazon Cognito”*, tôi tập trung vào các chi tiết cụ thể của việc sử dụng Amazon Cognito và Attribute Based Access Control (ABAC) để xác thực và ủy quyền người dùng trong giải pháp data lake y tế. Trong blog này, tôi trình bày chi tiết cách giải pháp đã phát triển ở cấp độ cơ bản, bao gồm các quyết định thiết kế mà tôi đã đưa ra và các tính năng bổ sung được sử dụng. Bạn có thể truy cập các code samples cho giải pháp tại Git repo này để tham khảo.
+Khi triển khai một miền [Amazon OpenSearch Service](https://aws.amazon.com/blogs/big-data/category/analytics/amazon-opensearch-service/), bạn cần xác định kích thước lưu trữ, loại và số lượng instance; quyết định chiến lược phân mảnh (sharding) và có sử dụng cluster manager hay không; đồng thời kích hoạt zone awareness. Nhìn chung, chúng ta xem xét dung lượng lưu trữ như là hướng dẫn để xác định số lượng instance, nhưng không phải các thông số khác. Ở bài viết này, chúng tôi đưa ra một số khuyến nghị dựa theo cách thức T‑shirt‑sizing cho khối lượng công việc phân tích nhật ký.
 
 ---
 
-## Hướng dẫn kiến trúc
+**Đặc điểm của phân tích nhật ký và khối lượng công việc streaming**
 
-Thay đổi chính kể từ lần trình bày cuối cùng của kiến trúc tổng thể là việc tách dịch vụ đơn lẻ thành một tập hợp các dịch vụ nhỏ để cải thiện khả năng bảo trì và tính linh hoạt. Việc tích hợp một lượng lớn dữ liệu y tế khác nhau thường yêu cầu các trình kết nối chuyên biệt cho từng định dạng; bằng cách giữ chúng được đóng gói riêng biệt với microservices, chúng ta có thể thêm, xóa và sửa đổi từng trình kết nối mà không ảnh hưởng đến những kết nối khác. Các microservices được kết nối rời thông qua tin nhắn publish/subscribe tập trung trong cái mà tôi gọi là “pub/sub hub”.
+Khi sử dụng OpenSearch Service cho khối lượng công việc streaming, bạn gửi dữ liệu từ một hoặc nhiều nguồn vào OpenSearch Service để tạo chỉ mục do bạn định nghĩa
 
-Giải pháp này đại diện cho những gì tôi sẽ coi là một lần lặp nước rút hợp lý khác từ last post của tôi. Phạm vi vẫn được giới hạn trong việc nhập và phân tích cú pháp đơn giản của các **HL7v2 messages** được định dạng theo **Quy tắc mã hóa 7 (ER7)** thông qua giao diện REST.
+Dữ liệu nhật ký thường có đặc điểm chuỗi thời gian, do đó chiến lược đánh chỉ mục theo thời gian (chỉ mục theo ngày hoặc theo tuần) được khuyến nghị. Để quản lý nhật ký hiệu quả, bạn cần phải triển khai [index patterns theo thời gian](https://docs.opensearch.org/latest/dashboards/management/index-patterns/) và thiết lập thời gian lưu giữ. Bạn cũng cần xác định thêm việc [phân chia theo thời gian và thời gian lưu giữ](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/ism.html) cho dữ liệu để quản lý vòng đời của nó trong miền của mình.
 
-**Kiến trúc giải pháp bây giờ như sau:**
+Để minh họa, hãy giả sử bạn có một nguồn dữ liệu tạo ra luồng log liên tục và bạn đã cấu hình chỉ mục cuộn hàng ngày với thời gian lưu giữ 3 ngày. Khi log tới, OpenSearch Service sẽ tạo ra một chỉ mục mỗi ngày với các tên như  stream1\_2025.05.21, stream1\_2025.05.22, … Với tiền tố stream1\_\* được gọi là một [**index pattern**](https://docs.opensearch.org/latest/dashboards/management/index-patterns/), tức là quy ước đặt tên giúp nhóm các chỉ mục liên quan lại với nhau.
 
-> *Hình 1. Kiến trúc tổng thể; những ô màu thể hiện những dịch vụ riêng biệt.*
+Sơ đồ dưới đây cho thấy có ba primary shard cho mỗi chỉ mục hằng ngày. Các shard này được triển khai trên ba OpenSearch Service data instance, và mỗi primary shard có một replica tương ứng. (Để đơn giản, sơ đồ không minh họa rằng primary và replica shard luôn được đặt trên các instance khác nhau nhằm đảm bảo khả năng chịu lỗi)
 
----
+![Sơ đồ primary shard và replica](/images/3-BlogsTranslated/Blog1/img1.jpg)
 
-Mặc dù thuật ngữ *microservices* có một số sự mơ hồ cố hữu, một số đặc điểm là chung:  
-- Chúng nhỏ, tự chủ, kết hợp rời rạc  
-- Có thể tái sử dụng, giao tiếp thông qua giao diện được xác định rõ  
-- Chuyên biệt để giải quyết một việc  
-- Thường được triển khai trong **event-driven architecture**
+Khi OpenSearch Service xử lý các bản ghi nhật ký mới, chúng được gửi tới tất cả các primary shard liên quan và replica của chúng trong chỉ mục đang hoạt động, trong ví dụ này chỉ là chỉ mục của ngày hôm nay do cấu hình chỉ mục theo ngày.
 
-Khi xác định vị trí tạo ranh giới giữa các microservices, cần cân nhắc:  
-- **Nội tại**: công nghệ được sử dụng, hiệu suất, độ tin cậy, khả năng mở rộng  
-- **Bên ngoài**: chức năng phụ thuộc, tần suất thay đổi, khả năng tái sử dụng  
-- **Con người**: quyền sở hữu nhóm, quản lý *cognitive load*
+![Phân phối bản ghi nhật ký](/images/3-BlogsTranslated/Blog1/img2.jpg)
 
----
+Có một số đặc điểm quan trọng về cách Dịch vụ OpenSearch xử lý các mục nhập mới của bạn:
 
-## Lựa chọn công nghệ và phạm vi giao tiếp
+- **Tổng số shard** – Mỗi pattern của chỉ mục có tổng số shard bằng D × P × (1 \+ R), trong đó D là số ngày lưu giữ, P là số primary shard và R là số replica. Các shard này được phân phối trên các data node.  
+- **Chỉ mục đang hoạt động** – Kỹ thuật time‑slicing nghĩa là các bản ghi log mới chỉ được ghi vào chỉ mục của ngày hiện tại.  
+- **Sử dụng tài nguyên** – Khi gửi một yêu cầu [\_bulk](https://docs.opensearch.org/latest/api-reference/document-apis/bulk/) với các bản ghi log, chúng được phân phối tới tất cả các shard trong chỉ mục đang hoạt động. Ví dụ với ba primary shard và một replica cho mỗi shard chính, tổng cộng có sáu shard xử lý dữ liệu đồng thời, cần 6 vCPU để xử lý hiệu quả một yêu cầu \_bulk.
 
-| Phạm vi giao tiếp                        | Các công nghệ / mô hình cần xem xét                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Trong một microservice                   | Amazon Simple Queue Service (Amazon SQS), AWS Step Functions                               |
-| Giữa các microservices trong một dịch vụ | AWS CloudFormation cross-stack references, Amazon Simple Notification Service (Amazon SNS) |
-| Giữa các dịch vụ                         | Amazon EventBridge, AWS Cloud Map, Amazon API Gateway                                      |
+Tương tự, OpenSearch Service phân phối truy vấn trên các shard của các chỉ mục liên quan. Nếu bạn truy vấn pattern này trong cả 3 ngày, sẽ có 9 shard tham gia và cần 9 vCPU để xử lý yêu cầu.
+
+![Truy vấn trên nhiều shard](/images/3-BlogsTranslated/Blog1/img3.jpg)
+
+Điều này sẽ trở nên phức tạp hơn khi bạn bổ sung thêm nhiều data stream và index pattern. Với mỗi data stream hoặc index pattern bổ sung, bạn phải triển khai các shard cho từng chỉ mục hằng ngày và sử dụng vCPU để xử lý yêu cầu tương ứng với số shard được triển khai, như minh họa ở sơ đồ trước. Khi bạn gửi các yêu cầu đồng thời tới nhiều chỉ mục, mỗi shard của tất cả các chỉ mục liên quan đều phải xử lý những yêu cầu đó.
+
+![Xử lý yêu cầu đồng thời](/images/3-BlogsTranslated/Blog1/img4.jpg)
 
 ---
 
-## The pub/sub hub
+**Dung lượng Cluster**
 
-Việc sử dụng kiến trúc **hub-and-spoke** (hay message broker) hoạt động tốt với một số lượng nhỏ các microservices liên quan chặt chẽ.  
-- Mỗi microservice chỉ phụ thuộc vào *hub*  
-- Kết nối giữa các microservice chỉ giới hạn ở nội dung của message được xuất  
-- Giảm số lượng synchronous calls vì pub/sub là *push* không đồng bộ một chiều
+Khi số lượng index pattern và các yêu cầu đồng thời tăng lên, tài nguyên của cụm có thể nhanh chóng bị quá tải. OpenSearch Service bao gồm các hàng đợi nội bộ để đệm yêu cầu và giảm bớt nhu cầu xử lý đồng thời. Bạn có thể giám sát những hàng đợi này bằng API  [\_cat/thread\_pool](https://docs.opensearch.org/docs/latest/api-reference/cat/cat-thread-pool/), công cụ cho thấy độ sâu hàng đợi và giúp bạn hiểu khi nào cụm của mình đang tiến gần tới giới hạn dung lượng.
 
-Nhược điểm: cần **phối hợp và giám sát** để tránh microservice xử lý nhầm message.
+Một yếu tố phức tạp khác là thời gian xử lý các bản cập nhật và truy vấn phụ thuộc vào nội dung của chúng. Khi yêu cầu đến, hàng đợi sẽ lấp đầy theo tốc độ bạn gửi. Chúng được giải phóng theo tốc độ được quyết định bởi số vCPU, thời gian từng yêu cầu và thời gian xử lý. Bạn có thể xen kẽ nhiều yêu cầu hơn nếu các yêu cầu đó được xử lý trong vài phần nghìn giây so với trong một giây. Bạn có thể sử dụng API [\_nodes/stats](https://docs.opensearch.org/docs/latest/api-reference/nodes-apis/nodes-stats/) của OpenSearch để giám sát tải trung bình trên CPU. Để biết thêm về các giai đoạn truy vấn, hãy tham khảo bài  [A query, or There and Back Again](https://opensearch.org/blog/a-query-or-there-and-back-again/) trên blog OpenSearch.
 
----
-
-## Core microservice
-
-Cung cấp dữ liệu nền tảng và lớp truyền thông, gồm:  
-- **Amazon S3** bucket cho dữ liệu  
-- **Amazon DynamoDB** cho danh mục dữ liệu  
-- **AWS Lambda** để ghi message vào data lake và danh mục  
-- **Amazon SNS** topic làm *hub*  
-- **Amazon S3** bucket cho artifacts như mã Lambda
-
-> Chỉ cho phép truy cập ghi gián tiếp vào data lake qua hàm Lambda → đảm bảo nhất quán.
+Nếu bạn thấy độ sâu hàng đợi tăng lên, nghĩa là bạn đang bước vào “vùng cảnh báo”, nơi cụm vẫn xử lý được tải nhưng đã tới ngưỡng. Nếu tiếp tục, bạn có thể vượt quá các hàng đợi có sẵn và cần mở rộng thêm CPU. Nếu bạn bắt đầu thấy tải tăng, tương quan với độ sâu hàng đợi tăng, thì bạn cũng đang ở trong vùng "cảnh báo" và nên cân nhắc việc mở rộng quy mô.
 
 ---
 
-## Front door microservice
+## **Recommendations**
 
-- Cung cấp API Gateway để tương tác REST bên ngoài  
-- Xác thực & ủy quyền dựa trên **OIDC** thông qua **Amazon Cognito**  
-- Cơ chế *deduplication* tự quản lý bằng DynamoDB thay vì SNS FIFO vì:
-  1. SNS deduplication TTL chỉ 5 phút
-  2. SNS FIFO yêu cầu SQS FIFO
-  3. Chủ động báo cho sender biết message là bản sao
+Để xác định kích thước một miền, bạn có thể tham khảo các bước sau:
+
+* **Xác định dung lượng lưu trữ cần thiết** – Tổng lưu trữ \= (dữ liệu nguồn hàng ngày tính theo byte × 1,45) × (số replica \+ 1\) × số ngày lưu giữ. Hệ số 45 % bổ sung này gồm:  
+  * 10 % cho việc kích thước chỉ mục lớn hơn dữ liệu gốc.  
+  * 5 % cho overhead của hệ điều hành (Linux dành riêng cho khôi phục hệ thống và bảo vệ chống phân mảnh ổ đĩa).  
+  * 20 % cho phần không gian dự phòng của OpenSearch trên mỗi instance (gộp segment, log và các thao tác nội bộ).
+
+  * 10 % cho bộ đệm lưu trữ bổ sung (giảm thiểu ảnh hưởng của lỗi node và sự cố Availability Zone).  
+* **Xác định số lượng shard** – Số lượng primary shard xấp xỉ bằng kích thước lưu trữ cần cho mỗi chỉ mục chia cho kích thước shard mong muốn. Làm tròn lên bội số gần nhất của số node dữ liệu để phân bố đều. Đối với phân tích nhật ký, lưu ý:  
+  * Kích thước shard khuyến nghị: 30–50 GB.  
+  * Mục tiêu tối ưu: 50 GB mỗi shard.  
+* **Tính toán nhu cầu CPU** – Tỷ lệ đề xuất là 1,25 vCPU:1 cho mỗi shard với khối lượng dữ liệu nhỏ. Đối với khối lượng lớn hơn, tỷ lệ cao hơn được khuyến nghị. Mục tiêu sử dụng là trung bình 60 %, tối đa 80 %.  
+* **Chọn loại instance phù hợp** – Dựa trên từng loại node:  
+  * **Cluster manager nodes**: Dùng các instance dòng M của AWS Graviton (phù hợp với mọi khối lượng).  
+  * **Data nodes** (khối lượng nhỏ đến lớn): Dùng instance dòng M hoặc R của AWS Graviton kết hợp Amazon Elastic Block Store (Amazon EBS).  
+  * **Data nodes** (khối lượng rất lớn): Dùng instance dòng I với ổ NVMe SSD.
+
+Ví dụ về việc xác định kích thước miền:
+
+* Dung lượng log hàng ngày: 3 TB.  
+* Thời gian lưu giữ: 3 tháng (90 ngày).  
+* Số replica: 1\.
+
+![Ví dụ tính toán kích thước miền](/images/3-BlogsTranslated/Blog1/img5.jpg)
+
+Chúng ta thực hiện phép tính sau.
+
+![Kết quả tính toán](/images/3-BlogsTranslated/Blog1/img6.jpg)
+
+Bảng sau đây khuyến nghị loại instance, khối lượng dữ liệu nguồn, dung lượng lưu trữ cần thiết cho 7 ngày lưu giữ, và số lượng active shard dựa trên các hướng dẫn đã nêu:
+
+| T-Shirt Size | Data (Per Day) | Storage Needed (with 7 days Retention) | Active Shards | Data Nodes | Primary Nodes |
+| :---- | :---- | :---- | :---- | :---- | :---- |
+| XSmall | 10 GB | 175 GB | 2 @ 50 GB | 3 \* r7g.large. search | 3 \* m7g.large. search |
+| Small | 100 GB | 1.75 TB | 6 @ 50 GB | 3 \* r7g.xlarge. search | 3 \* m7g.large. search |
+| Medium | 500 GB | 8.75 TB | 30 @ 50 GB | 6 \* r7g.2xlarge.search | 3 \* m7g.large. search |
+| Large | 1 TB | 17.5 TB | 60 @ 50 GB | 6 \* r7g.4xlarge.search | 3 \* m7g.large. search |
+| XLarge | 10 TB | 175 TB | 600 @ 50 GB | 30 \* i4g.8xlarge | 3 \* m7g.2xlarge.search |
+| XXL | 80 TB | 1.4 PB | 2400 @ 50 GB | 87 \* I4g.16xlarge | 3 \* m7g.4xlarge.search |
+
+Như với mọi khuyến nghị về sizing, các hướng dẫn này chỉ là điểm khởi đầu và được xây dựng dựa trên giả định. Khối lượng công việc (workload) của bạn sẽ khác, do đó nhu cầu thực tế của bạn cũng sẽ khác với các khuyến nghị này. Hãy đảm bảo rằng bạn triển khai, giám sát và điều chỉnh cấu hình khi cần.
+
+Đối với T-shirt sizing workload, trường hợp extra-small bao gồm tối đa 10 GB dữ liệu mỗi ngày từ một data stream duy nhất tới một index pattern duy nhất. Trường hợp small nằm trong khoảng 10–100 GB dữ liệu mỗi ngày. Trường hợp medium nằm trong khoảng 100–500 GB dữ liệu mỗi ngày, và tiếp tục tăng theo các mức lớn hơn. Số lượng instance mặc định cho mỗi domain là 80 đối với hầu hết các dòng instance. Tham khảo thêm chi tiết trong mục “[Amazon OpenSearch Service quotas](https://docs.aws.amazon.com/opensearch-service/latest/developerguide/limits.html) “.
+
+Ngoài ra, hãy cân nhắc những biện pháp tốt nhất sau::
+
+* Chọn đúng tầng lưu trữ (**Ultra Warm, Hot storage**) phù hợp với nhu cầu trong OpenSearch Service. Tham khảo mục [Choose the right storage tier for your needs in Amazon OpenSearch Service](https://aws.amazon.com/blogs/big-data/choose-the-right-storage-tier-for-your-needs-in-amazon-opensearch-service/) để biết chi tiết.  
+  Sử dụng dòng **OpenSearch Optimized (OR)** cho các workload quy mô lớn cần độ trễ thấp với các tác vụ nặng về indexing. Tham khảo bài [OpenSearch optimized instance (OR1) is game changing for indexing performance and cost](https://aws.amazon.com/blogs/big-data/opensearch-optimized-instance-or1-is-game-changing-for-indexing-performance-and-cost/) để biết chi tiết.  
+* Cô lập việc ingest bằng cách sử dụng **OpenSearch Ingestion pipeline** cho các workload từ nhỏ đến lớn để giảm bớt gánh nặng vận hành khi quản lý pipeline ingestion.  
+* Sử dụng **reserved instance** để tiết kiệm chi phí dài hạn.  
+* Cân nhắc sử dụng **Availability Zone awareness** để đảm bảo tính sẵn sàng cao.
 
 ---
 
-## Staging ER7 microservice
+**Kết luận**
 
-- Lambda “trigger” đăng ký với pub/sub hub, lọc message theo attribute  
-- Step Functions Express Workflow để chuyển ER7 → JSON  
-- Hai Lambda:
-  1. Sửa format ER7 (newline, carriage return)
-  2. Parsing logic  
-- Kết quả hoặc lỗi được đẩy lại vào pub/sub hub
+Bài viết này đã cung cấp các hướng dẫn toàn diện về việc xác định kích thước miền OpenSearch Service cho workload phân tích log, bao quát nhiều khía cạnh quan trọng. Những khuyến nghị này đóng vai trò là điểm khởi đầu vững chắc, nhưng mỗi workload đều có những đặc thù riêng. Để đạt hiệu năng tối ưu, hãy cân nhắc triển khai thêm các tối ưu hóa như data tiering và storage tier. Đánh giá các tùy chọn tiết kiệm chi phí như reserved instance, và mở rộng triển khai dựa trên các chỉ số hiệu năng thực tế cũng như độ sâu hàng đợi. Bằng cách tuân theo các hướng dẫn này và chủ động giám sát hệ thống, bạn có thể xây dựng một miền OpenSearch Service hoạt động hiệu quả, đáp ứng nhu cầu phân tích log trong khi vẫn duy trì tính hiệu quả và tiết kiệm chi phí.
 
 ---
 
-## Tính năng mới trong giải pháp
-
-### 1. AWS CloudFormation cross-stack references
-Ví dụ *outputs* trong core microservice:
-```yaml
-Outputs:
-  Bucket:
-    Value: !Ref Bucket
-    Export:
-      Name: !Sub ${AWS::StackName}-Bucket
-  ArtifactBucket:
-    Value: !Ref ArtifactBucket
-    Export:
-      Name: !Sub ${AWS::StackName}-ArtifactBucket
-  Topic:
-    Value: !Ref Topic
-    Export:
-      Name: !Sub ${AWS::StackName}-Topic
-  Catalog:
-    Value: !Ref Catalog
-    Export:
-      Name: !Sub ${AWS::StackName}-Catalog
-  CatalogArn:
-    Value: !GetAtt Catalog.Arn
-    Export:
-      Name: !Sub ${AWS::StackName}-CatalogArn
+| ![Harsh Bansal](/images/3-BlogsTranslated/Blog1/author.png) | Harsh Bansal [Harsh](https://www.linkedin.com/in/hbansal-analytics/) là một Analytics và AI Solutions Architect tại Amazon Web Services. Bansal cộng tác chặt chẽ với khách hàng, giúp đỡ họ  chuyển đổi lên các nền tảng đám mây và tối ưu hóa thiết lập các cụm để giúp khách hàng tăng hiệu suất và tiết kiệm chi phí. Trước khi tham gia AWS, Bansal hỗ trợ khách hàng tận dụng OpenSearch và Elasticsearch cho các yêu cầu phân tích nhật ký và tìm kiếm đa dạng. |
+| :---- | :---- |
+| ![Aditya Challa](/images/3-BlogsTranslated/Blog1/author2.jpg) | **Aditya Challa** Aditya là Senior Solutions Architect tại Amazon Web Services. Aditya yêu thích việc hỗ trợ khách hàng trong suốt hành trình AWS của họ vì anh ấy hiểu rằng hành trình luôn tuyệt vời hơn khi có người đồng hành. Anh ấy rất yêu thích du lịch, lịch sử, những kỳ quan kỹ thuật và học hỏi điều mới mẻ mỗi ngày. |
+| ![Raaga NG](/images/3-BlogsTranslated/Blog1/author3.png) | **Raaga NG** Raaga là Solutions Architect tại Amazon Web Services. Raaga là một chuyên gia công nghệ với hơn 5 năm kinh nghiệm chuyên về Phân tích. Raaga tâm huyết với việc giúp khách hàng AWS định hướng hành trình chuyển đổi lên đám mây. |

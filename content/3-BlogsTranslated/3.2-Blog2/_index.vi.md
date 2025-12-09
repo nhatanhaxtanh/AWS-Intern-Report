@@ -1,127 +1,166 @@
----
-title: "Blog 2"
-date: 
-weight: 1
+﻿---
+title: "Amazon SageMaker giới thiệu bộ lưu trữ chia sẻ dựa trên Amazon S3 để tăng cường cộng tác dự án"
+date: 2025-09-16
+weight: 2
 chapter: false
 pre: " <b> 3.2. </b> "
 ---
 
-{{% notice warning %}}
-⚠️ **Lưu ý:** Các thông tin dưới đây chỉ nhằm mục đích tham khảo, vui lòng **không sao chép nguyên văn** cho bài báo cáo của bạn kể cả warning này.
-{{% /notice %}}
+Ngày đăng: 2025‑09‑16 – Tác giả: Hari Ramesh, Anagha Barve, Anchit Gupta, Saurabh Bhutyani và Zach Mitchell trong [Amazon SageMaker Unified Studio](https://aws.amazon.com/blogs/big-data/category/analytics/amazon-sagemaker-unified-studio/), [Amazon Simple Storage Service (S3)](https://aws.amazon.com/blogs/big-data/category/storage/amazon-simple-storage-services-s3/), [Announcements](https://aws.amazon.com/blogs/big-data/category/post-types/announcements/), [Intermediate (200)](https://aws.amazon.com/blogs/big-data/category/learning-levels/intermediate-200/),[Technical How-to](https://aws.amazon.com/blogs/big-data/category/post-types/technical-how-to/).
 
-# Bắt đầu với healthcare data lakes: Sử dụng microservices
+AWS gần đây đã công bố rằng [Amazon SageMaker](https://aws.amazon.com/sagemaker/) hiện cung cấp  [Amazon Simple Storage Service](https://aws.amazon.com/s3) (Amazon S3) làm lựa chọn lưu trữ file mặc định cho các dự án mới trong [Amazon SageMaker Unified Studio](https://aws.amazon.com/sagemaker/unified-studio/). Tính năng này giải quyết việc ngừng hỗ trợ [AWS CodeCommit](https://aws.amazon.com/codecommit/), đồng thời mang đến cho các nhóm một cách đơn giản và nhất quán để cộng tác trên các file dự án trong toàn bộ công cụ phát triển tích hợp của SageMaker.
 
-Các data lake có thể giúp các bệnh viện và cơ sở y tế chuyển dữ liệu thành những thông tin chi tiết về doanh nghiệp và duy trì hoạt động kinh doanh liên tục, đồng thời bảo vệ quyền riêng tư của bệnh nhân. **Data lake** là một kho lưu trữ tập trung, được quản lý và bảo mật để lưu trữ tất cả dữ liệu của bạn, cả ở dạng ban đầu và đã xử lý để phân tích. data lake cho phép bạn chia nhỏ các kho chứa dữ liệu và kết hợp các loại phân tích khác nhau để có được thông tin chi tiết và đưa ra các quyết định kinh doanh tốt hơn.
+Tùy chọn lưu trữ Amazon S3 mới này mang lại những lợi ích sau:
 
-Bài đăng trên blog này là một phần của loạt bài lớn hơn về việc bắt đầu cài đặt data lake dành cho lĩnh vực y tế. Trong bài đăng blog cuối cùng của tôi trong loạt bài, *“Bắt đầu với data lake dành cho lĩnh vực y tế: Đào sâu vào Amazon Cognito”*, tôi tập trung vào các chi tiết cụ thể của việc sử dụng Amazon Cognito và Attribute Based Access Control (ABAC) để xác thực và ủy quyền người dùng trong giải pháp data lake y tế. Trong blog này, tôi trình bày chi tiết cách giải pháp đã phát triển ở cấp độ cơ bản, bao gồm các quyết định thiết kế mà tôi đã đưa ra và các tính năng bổ sung được sử dụng. Bạn có thể truy cập các code samples cho giải pháp tại Git repo này để tham khảo.
+* **Hợp tác đơn giản** – Chia sẻ file trực tiếp giữa các thành viên dự án mà không cần thao tác Git.  
+* **Truy cập đồng nhất** – File được truy cập nhất quán trên các công cụ SageMaker (JupyterLab, Query Editor, Visual ETL).  
+* **Phân tách workspace rõ ràng** – Có sẵn phân tách lưu trữ cá nhân với [Amazon Elastic Block Store](https://aws.amazon.com/ebs) (Amazon EBS) volumes.  
+* **Khả dụng toàn cầu** – Hỗ trợ ở tất cả các AWS Region mà SageMaker có mặt.
 
----
+Mặc dù Amazon S3 là tùy chọn mặc định cho việc lưu trữ file, bạn vẫn có thể sử dụng Git version control nếu muốn có khả năng quản lý source code mạnh mẽ hơn.
 
-## Hướng dẫn kiến trúc
-
-Thay đổi chính kể từ lần trình bày cuối cùng của kiến trúc tổng thể là việc tách dịch vụ đơn lẻ thành một tập hợp các dịch vụ nhỏ để cải thiện khả năng bảo trì và tính linh hoạt. Việc tích hợp một lượng lớn dữ liệu y tế khác nhau thường yêu cầu các trình kết nối chuyên biệt cho từng định dạng; bằng cách giữ chúng được đóng gói riêng biệt với microservices, chúng ta có thể thêm, xóa và sửa đổi từng trình kết nối mà không ảnh hưởng đến những kết nối khác. Các microservices được kết nối rời thông qua tin nhắn publish/subscribe tập trung trong cái mà tôi gọi là “pub/sub hub”.
-
-Giải pháp này đại diện cho những gì tôi sẽ coi là một lần lặp nước rút hợp lý khác từ last post của tôi. Phạm vi vẫn được giới hạn trong việc nhập và phân tích cú pháp đơn giản của các **HL7v2 messages** được định dạng theo **Quy tắc mã hóa 7 (ER7)** thông qua giao diện REST.
-
-**Kiến trúc giải pháp bây giờ như sau:**
-
-> *Hình 1. Kiến trúc tổng thể; những ô màu thể hiện những dịch vụ riêng biệt.*
+Trong bài viết này, chúng ta sẽ thảo luận về tính năng mới và cách bắt đầu sử dụng **Amazon S3 shared storage** trong **SageMaker Unified Studio**.
 
 ---
 
-Mặc dù thuật ngữ *microservices* có một số sự mơ hồ cố hữu, một số đặc điểm là chung:  
-- Chúng nhỏ, tự chủ, kết hợp rời rạc  
-- Có thể tái sử dụng, giao tiếp thông qua giao diện được xác định rõ  
-- Chuyên biệt để giải quyết một việc  
-- Thường được triển khai trong **event-driven architecture**
+**Tổng quan giải pháp**
 
-Khi xác định vị trí tạo ranh giới giữa các microservices, cần cân nhắc:  
-- **Nội tại**: công nghệ được sử dụng, hiệu suất, độ tin cậy, khả năng mở rộng  
-- **Bên ngoài**: chức năng phụ thuộc, tần suất thay đổi, khả năng tái sử dụng  
-- **Con người**: quyền sở hữu nhóm, quản lý *cognitive load*
+Khi bạn tạo một **SageMaker Unified Studio domain** mới, dịch vụ sẽ tự động cấu hình **Amazon S3** làm tùy chọn lưu trữ mặc định cho dự án. Mỗi dự án sẽ nhận được một vùng lưu trữ chung chuyên biệt trong Amazon S3, khả dụng cho các thành viên dự án, với cấu trúc:
 
----
+\[bucket\]/\[domain-id\]/\[project-id\]/shared/.
 
-## Lựa chọn công nghệ và phạm vi giao tiếp
+### Công cụ SageMaker (JupyterLab và Code Editor) cung cấp cho người dùng:
 
-| Phạm vi giao tiếp                        | Các công nghệ / mô hình cần xem xét                                                        |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------ |
-| Trong một microservice                   | Amazon Simple Queue Service (Amazon SQS), AWS Step Functions                               |
-| Giữa các microservices trong một dịch vụ | AWS CloudFormation cross-stack references, Amazon Simple Notification Service (Amazon SNS) |
-| Giữa các dịch vụ                         | Amazon EventBridge, AWS Cloud Map, Amazon API Gateway                                      |
+* Một **EBS volume cá nhân** để làm việc riêng trong JupyterLab và Code Editor.  
+* Một thư mục chia sẻ được mount, chứa không gian lưu trữ dùng chung của dự án trên Amazon S3.  
+* Phân tách rõ ràng giữa không gian cá nhân và không gian chia sẻ.
 
----
+### Khả năng truy cập lưu trữ chia sẻ trong các công cụ phát triển tích hợp SageMaker:
 
-## The pub/sub hub
+* **JupyterLab** và **Code Editor** hiển thị file chia sẻ song song với file cá nhân.  
+* **Query Editor** lọc các SQL notebook có liên quan.  
+* **Visual ETL** cung cấp khả năng truy cập trực tiếp tới các workflow ETL (extract, transform, load) chia sẻ.
 
-Việc sử dụng kiến trúc **hub-and-spoke** (hay message broker) hoạt động tốt với một số lượng nhỏ các microservices liên quan chặt chẽ.  
-- Mỗi microservice chỉ phụ thuộc vào *hub*  
-- Kết nối giữa các microservice chỉ giới hạn ở nội dung của message được xuất  
-- Giảm số lượng synchronous calls vì pub/sub là *push* không đồng bộ một chiều
-
-Nhược điểm: cần **phối hợp và giám sát** để tránh microservice xử lý nhầm message.
+Các file được lưu vào thư mục dùng chung sẽ ngay lập tức khả dụng và hiển thị cho các thành viên dự án. Người dùng vẫn có thể tiếp tục làm việc với file cá nhân trong **EBS volumes** (ví dụ trong JupyterLab và Code Editor) và có thể chuyển file sang vùng lưu trữ chia sẻ khi sẵn sàng cộng tác. Nếu bạn muốn dùng Git cho việc cộng tác, bạn vẫn có thể làm điều đó bằng cách tích hợp dự án với GitHub, GitLab, hoặc các repository được quản lý trên Bitbucket.
 
 ---
 
-## Core microservice
+## **Tùy chọn di chuyển và kiểm soát phiên bản**
 
-Cung cấp dữ liệu nền tảng và lớp truyền thông, gồm:  
-- **Amazon S3** bucket cho dữ liệu  
-- **Amazon DynamoDB** cho danh mục dữ liệu  
-- **AWS Lambda** để ghi message vào data lake và danh mục  
-- **Amazon SNS** topic làm *hub*  
-- **Amazon S3** bucket cho artifacts như mã Lambda
-
-> Chỉ cho phép truy cập ghi gián tiếp vào data lake qua hàm Lambda → đảm bảo nhất quán.
+Đối với các nhóm hiện đang sử dụng **Amazon CodeCommit**, các dự án hiện có vẫn sẽ hoạt động bình thường. Các dự án mới sẽ mặc định sử dụng lưu trữ **Amazon S3**. Nếu bạn muốn có chức năng **version control** cho các dự án dựa trên Amazon S3, bạn có thể bật tính năng **versioning trực tiếp** trong Amazon S3.
 
 ---
 
-## Front door microservice
+## **Các bước chuẩn bị**
 
-- Cung cấp API Gateway để tương tác REST bên ngoài  
-- Xác thực & ủy quyền dựa trên **OIDC** thông qua **Amazon Cognito**  
-- Cơ chế *deduplication* tự quản lý bằng DynamoDB thay vì SNS FIFO vì:
-  1. SNS deduplication TTL chỉ 5 phút
-  2. SNS FIFO yêu cầu SQS FIFO
-  3. Chủ động báo cho sender biết message là bản sao
+Trước khi thực hiện các hướng dẫn trong phần tiếp theo, bạn cần hoàn thành các bước chuẩn bị sau:
 
----
-
-## Staging ER7 microservice
-
-- Lambda “trigger” đăng ký với pub/sub hub, lọc message theo attribute  
-- Step Functions Express Workflow để chuyển ER7 → JSON  
-- Hai Lambda:
-  1. Sửa format ER7 (newline, carriage return)
-  2. Parsing logic  
-- Kết quả hoặc lỗi được đẩy lại vào pub/sub hub
+1. [Đăng ký tài khoản AWS](https://docs.aws.amazon.com/sagemaker-unified-studio/latest/adminguide/setting-up.html#sign-up-for-aws)**.**  
+2. [Tạo người dùng có quyền quản trị (administrative access)](https://docs.aws.amazon.com/sagemaker-unified-studio/latest/adminguide/setting-up.html#create-an-admin)**.**  
+3. [Kích hoạt IAM Identity Center](https://docs.aws.amazon.com/singlesignon/latest/userguide/enable-identity-center.html) trong cùng **AWS Region** mà bạn muốn tạo **SageMaker Unified Studio domain**. Xác nhận xem SageMaker Unified Studio hiện có sẵn ở Region nào. Thiết lập **Identity Provider (IdP)** và đồng bộ hóa danh tính (identities) và nhóm (groups) với **IAM Identity Center**. Để biết thêm chi tiết, tham khảo phần [IAM Identity Center Identity source tutorials](https://docs.aws.amazon.com/singlesignon/latest/userguide/tutorials.html).
 
 ---
 
-## Tính năng mới trong giải pháp
+## **Bắt đầu sử dụng Amazon S3 Shared Storage**
 
-### 1. AWS CloudFormation cross-stack references
-Ví dụ *outputs* trong core microservice:
-```yaml
-Outputs:
-  Bucket:
-    Value: !Ref Bucket
-    Export:
-      Name: !Sub ${AWS::StackName}-Bucket
-  ArtifactBucket:
-    Value: !Ref ArtifactBucket
-    Export:
-      Name: !Sub ${AWS::StackName}-ArtifactBucket
-  Topic:
-    Value: !Ref Topic
-    Export:
-      Name: !Sub ${AWS::StackName}-Topic
-  Catalog:
-    Value: !Ref Catalog
-    Export:
-      Name: !Sub ${AWS::StackName}-Catalog
-  CatalogArn:
-    Value: !GetAtt Catalog.Arn
-    Export:
-      Name: !Sub ${AWS::StackName}-CatalogArn
+Để bắt đầu sử dụng **Amazon S3 shared storage**, hãy hoàn thành các bước sau:
+
+1. Tạo một **SageMaker Unified Studio domain** mới.  
+
+![](/images/3-BlogsTranslated/Blog2/img1.png)
+
+2. Tạo một dự án mới (lưu trữ Amazon S3 sẽ được chọn mặc định làm tùy chọn lưu trữ file).  
+![](/images/3-BlogsTranslated/Blog2/img2.png)
+
+3. Mở dự án mới và chọn **JupyterLab** trong menu **Build**.  
+![](/images/3-BlogsTranslated/Blog2/img3.png)
+
+4. Lưu notebook mới mà bạn vừa tạo.  
+![](/images/3-BlogsTranslated/Blog2/img4.png)
+
+5. Đổi tên file theo ý bạn.  
+   ![](/images/3-BlogsTranslated/Blog2/img5.png)
+
+
+Sau khi dự án được lưu, người dùng trong dự án có thể xem notebook đã lưu trong phần **Project files** theo đường dẫn S3:
+
+\[bucket\]/\[domain-id\]/\[project-id\]/shared/.
+
+---
+![](/images/3-BlogsTranslated/Blog2/img6.png)
+
+### **Bật kiểm soát phiên bản với Git**
+
+Để bật **version control** bằng Git, hãy thực hiện các bước sau:
+
+1. Truy cập **SageMaker console** và tạo **project profile** mới.  
+![](/images/3-BlogsTranslated/Blog2/img7.png)
+
+2. Cung cấp đầy đủ thông tin cần thiết cho project profile của bạn.  
+![](/images/3-BlogsTranslated/Blog2/img8.png)
+
+3. Trong phần **Project files storage**, tùy chọn **Amazon S3** được chọn mặc định. Nếu muốn bật version control cho dự án, bạn có thể sử dụng các kết nối repository Git sẵn có bằng cách chọn **Git repository**.
+![](/images/3-BlogsTranslated/Blog2/img9.png)
+
+
+---
+
+### **Sử dụng shared storage trong Query Editor**
+
+Để sử dụng tính năng **shared storage** trong **Query Editor**, hãy thực hiện các bước sau:
+
+1. Chọn **Query Editor** từ menu **Build**.  
+![](/images/3-BlogsTranslated/Blog2/img10.png)
+
+2. Soạn truy vấn của bạn, sau đó trong menu **Actions**, chọn **Save** để lưu truy vấn vào vùng lưu trữ chia sẻ.  
+![](/images/3-BlogsTranslated/Blog2/img11.png)
+
+3. Quay lại phần **Project files**, nơi bạn có thể xem các file query notebook nằm trong đường dẫn S3:  
+   \[bucket\]/\[domain-id\]/\[project-id\]/shared/.
+![](/images/3-BlogsTranslated/Blog2/img12.png)
+
+---
+
+## **Sử dụng shared storage trong Visual ETL flows**
+
+Để sử dụng tính năng **shared storage** trong **Visual ETL flows**, hãy thực hiện các bước sau:
+
+1. Chọn **Visual ETL flows** từ menu **Build**.  
+![](/images/3-BlogsTranslated/Blog2/img13.png)
+
+2. Phát triển workflow ETL của bạn và lưu mã vào dự án. 
+![](/images/3-BlogsTranslated/Blog2/img14.png)
+
+3. Quay lại phần **Project files**, nơi bạn có thể xem các file nằm trong đường dẫn S3: \[bucket\]/\[domain-id\]/\[project-id\]/shared/jobs/uploads/\<ETL name\>.
+![](/images/3-BlogsTranslated/Blog2/img15.png)
+
+---
+
+## **Dọn dẹp tài nguyên**
+
+Hãy đảm bảo bạn xóa các tài nguyên SageMaker Unified Studio sau khi hoàn tất để tránh phát sinh chi phí không mong muốn. Quy trình bao gồm các bước sau:
+
+1. **Xóa các dự án (projects).**  
+2. **Xóa domain.**  
+3. **Xóa S3 bucket** có tên dạng:  
+   amazon-datazone-AWSACCOUNTID-AWSREGION-DOMAINID
+
+---
+
+## **Kết luận**
+
+Việc ra mắt tính năng Amazon S3 shared storage trong SageMaker là một bước tiến nữa trong việc đơn giản hóa trải nghiệm phát triển phân tích và học máy (ML) cho khách hàng. Bằng cách giảm độ phức tạp của các thao tác Git nhưng vẫn duy trì khả năng cộng tác mạnh mẽ, các nhóm có thể tập trung hơn vào việc xây dựng và triển khai các giải pháp phân tích và ML nhanh chóng hơn. Tính năng này hiện đã khả dụng tại các AWS Region có hỗ trợ SageMaker.
+
+Để biết thông tin chi tiết về tính năng này, bao gồm hướng dẫn thiết lập và best practices, vui lòng tham khảo tài liệu [Unified storage in Amazon SageMaker Unified Studio](https://docs.aws.amazon.com/sagemaker-unified-studio/latest/userguide/storage.html).
+
+---
+
+| ![](/images/3-BlogsTranslated/Blog2/author1.jpeg) | Hari Ramesh [Hari](https://www.linkedin.com/in/haryramesh/) là Senior Analytics Specialist Solutions Architect tại AWS. Ông tập trung vào việc xây dựng các nền tảng dữ liệu đám mây, cho phép trực tuyến theo thời gian thực, xử lý dữ liệu lớn và quản trị dữ liệu mạnh mẽ. |
+| :---- | :---- |
+| ![](/images/3-BlogsTranslated/Blog2/author2.jpg) | **Anagha Barve** [Anagha](https://www.linkedin.com/in/anagha-barve-9a86b8/) là Software Development Manager trong nhóm Amazon SageMaker Unified Studio. Nhóm của cô tập trung vào việc xây dựng các công cụ và trải nghiệm tích hợp cho các nhà phát triển bằng Amazon SageMaker Unified Studio. Trong thời gian rảnh rỗi, cô thích nấu ăn, làm vườn và du lịch. |
+| 
+| ![](/images/3-BlogsTranslated/Blog2/author3.jpg) | **Zach Mitchell** [Zach](https://www.linkedin.com/in/zachary-mitchell-ab882853/) là Sr. Big Data Architect. Anh ấy làm việc trong nhóm sản phẩm để tăng cường sự hiểu biết giữa các kỹ sư sản phẩm và khách hàng của họ đồng thời hướng dẫn khách hàng trong suốt hành trình phát triển hồ dữ liệu và các giải pháp dữ liệu khác trên các dịch vụ phân tích AWS. |
+| 
+| ![](/images/3-BlogsTranslated/Blog2/author4.jpg) | **Saurabh Bhutyani** [Saurabh](https://www.linkedin.com/in/s4saurabh/) là Principal Analytics Specialist Solutions Architect tại AWS. Anh đam mê công nghệ mới. Anh gia nhập AWS vào năm 2019 và làm việc với khách hàng để cung cấp hướng dẫn kiến ​​trúc cho việc vận hành các trường hợp sử dụng AI tạo sinh, các giải pháp phân tích có thể mở rộng và kiến ​​trúc lưới dữ liệu bằng các dịch vụ AWS như Amazon Bedrock, Amazon SageMaker, Amazon EMR, Amazon Athena, AWS Glue, AWS Lake Formation và Amazon DataZone. |
+| 
+| ![](/images/3-BlogsTranslated/Blog2/author5.jpg) | **Anchit Gupta** [Anchit](https://www.linkedin.com/in/anchitgupta92/) là Senior Product Manager cho Amazon SageMaker Studio. Cô tập trung vào việc tạo điều kiện cho các quy trình làm việc khoa học dữ liệu và kỹ thuật dữ liệu tương tác từ bên trong SageMaker Studio IDE. Trong thời gian rảnh rỗi, cô thích nấu ăn, chơi cờ bàn/bài và đọc sách. |
